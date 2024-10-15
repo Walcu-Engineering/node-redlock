@@ -131,7 +131,8 @@ export class ResourceLockedError extends Error {
 export class ExecutionError extends Error {
   constructor(
     public readonly message: string,
-    public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>
+    public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>,
+    public readonly caller?: string,
   ) {
     super();
     this.name = "ExecutionError";
@@ -310,7 +311,8 @@ export default class Redlock extends EventEmitter {
         this.scripts.acquireScript,
         resources,
         [value, duration],
-        settings
+        settings,
+        'acquire',
       );
 
       // Add 2 milliseconds to the drift to account for Redis expires precision,
@@ -332,7 +334,7 @@ export default class Redlock extends EventEmitter {
       // state that may exist on a minority of clients.
       await this._execute(this.scripts.releaseScript, resources, [value], {
         retryCount: 0,
-      }).catch(() => {
+      }, 'acquire error, releasing').catch(() => {
         // Any error here will be ignored.
       });
 
@@ -359,7 +361,8 @@ export default class Redlock extends EventEmitter {
       this.scripts.releaseScript,
       lock.resources,
       [lock.value],
-      settings
+      settings,
+      'release',
     );
   }
 
@@ -384,7 +387,8 @@ export default class Redlock extends EventEmitter {
       this.scripts.extendScript,
       existing.resources,
       [existing.value, duration],
-      settings
+      settings,
+      'extend',
     );
 
     // Invalidate the existing lock.
@@ -417,7 +421,8 @@ export default class Redlock extends EventEmitter {
     script: { value: string; hash: string },
     keys: string[],
     args: (string | number)[],
-    _settings?: Partial<Settings>
+    _settings?: Partial<Settings>,
+    _caller?: string,
   ): Promise<ExecutionResult> {
     const settings = _settings
       ? {
@@ -463,7 +468,8 @@ export default class Redlock extends EventEmitter {
       } else {
         throw new ExecutionError(
           "The operation was unable to achieve a quorum during its retry window.",
-          attempts
+          attempts,
+          _caller,
         );
       }
     }
