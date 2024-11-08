@@ -440,6 +440,8 @@ export default class Redlock extends EventEmitter {
         }
       : this.settings;
 
+    // console.log(`[REDLOCK] ${_caller} executing`);
+
     // For the purpose of easy config serialization, we treat a retryCount of
     // -1 a equivalent to Infinity.
     const maxAttempts =
@@ -463,14 +465,16 @@ export default class Redlock extends EventEmitter {
 
       // Wait before reattempting.
       if (attempts.length < maxAttempts) {
+        const timeout_time = Math.max(
+          0,
+          settings.retryDelay +
+            Math.floor((Math.random() * 2 - 1) * settings.retryJitter)
+        );
+        // console.log(`Waiting for ${timeout_time} until retry, remaining attempts: ${maxAttempts - attempts.length}`);
         await new Promise((resolve) => {
           setTimeout(
             resolve,
-            Math.max(
-              0,
-              settings.retryDelay +
-                Math.floor((Math.random() * 2 - 1) * settings.retryJitter)
-            ),
+            timeout_time,
             undefined
           );
         });
