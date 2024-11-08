@@ -100,6 +100,7 @@ export interface Settings {
   readonly retryDelay: number;
   readonly retryJitter: number;
   readonly automaticExtensionThreshold: number;
+  readonly adquireExtraTime: number;
 }
 
 // Define default settings.
@@ -109,6 +110,7 @@ const defaultSettings: Readonly<Settings> = {
   retryDelay: 200,
   retryJitter: 100,
   automaticExtensionThreshold: 500,
+  adquireExtraTime: 0,
 };
 
 // Modifyng this object is forbidden.
@@ -233,6 +235,10 @@ export default class Redlock extends EventEmitter {
         typeof settings.automaticExtensionThreshold === "number"
           ? settings.automaticExtensionThreshold
           : defaultSettings.automaticExtensionThreshold,
+      adquireExtraTime:
+        typeof settings.adquireExtraTime === "number"
+          ? settings.adquireExtraTime
+          : defaultSettings.adquireExtraTime,
     };
 
     // Use custom scripts and script modifiers.
@@ -307,10 +313,11 @@ export default class Redlock extends EventEmitter {
     const value = this._random();
 
     try {
+      const redis_adquire_time = duration + (settings?.adquireExtraTime ?? 0);
       const { attempts, start } = await this._execute(
         this.scripts.acquireScript,
         resources,
-        [value, duration],
+        [value, redis_adquire_time],
         settings,
         'acquire',
       );
@@ -383,10 +390,12 @@ export default class Redlock extends EventEmitter {
       throw new ExecutionError("Cannot extend an already-expired lock.", []);
     }
 
+    const redis_adquire_time = duration + (settings?.adquireExtraTime ?? 0);
+
     const { attempts, start } = await this._execute(
       this.scripts.extendScript,
       existing.resources,
-      [existing.value, duration],
+      [existing.value, redis_adquire_time],
       settings,
       'extend',
     );
