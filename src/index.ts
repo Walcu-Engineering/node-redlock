@@ -134,7 +134,7 @@ export class ExecutionError extends Error {
   constructor(
     public readonly message: string,
     public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>,
-    public readonly caller?: string,
+    public readonly caller?: string
   ) {
     super();
     this.name = "ExecutionError";
@@ -319,7 +319,7 @@ export default class Redlock extends EventEmitter {
         resources,
         [value, redis_adquire_time],
         settings,
-        'acquire',
+        "acquire"
       );
 
       // Add 2 milliseconds to the drift to account for Redis expires precision,
@@ -339,9 +339,15 @@ export default class Redlock extends EventEmitter {
     } catch (error) {
       // If there was an error acquiring the lock, release any partial lock
       // state that may exist on a minority of clients.
-      await this._execute(this.scripts.releaseScript, resources, [value], {
-        retryCount: 0,
-      }, 'acquire error, releasing').catch(() => {
+      await this._execute(
+        this.scripts.releaseScript,
+        resources,
+        [value],
+        {
+          retryCount: 0,
+        },
+        "acquire error, releasing"
+      ).catch(() => {
         // Any error here will be ignored.
       });
 
@@ -369,7 +375,7 @@ export default class Redlock extends EventEmitter {
       lock.resources,
       [lock.value],
       settings,
-      'release',
+      "release"
     );
   }
 
@@ -397,7 +403,7 @@ export default class Redlock extends EventEmitter {
       existing.resources,
       [existing.value, redis_adquire_time],
       settings,
-      'extend',
+      "extend"
     );
 
     // Invalidate the existing lock.
@@ -431,7 +437,7 @@ export default class Redlock extends EventEmitter {
     keys: string[],
     args: (string | number)[],
     _settings?: Partial<Settings>,
-    _caller?: string,
+    _caller?: string
   ): Promise<ExecutionResult> {
     const settings = _settings
       ? {
@@ -472,17 +478,13 @@ export default class Redlock extends EventEmitter {
         );
         // console.log(`Waiting for ${timeout_time} until retry, remaining attempts: ${maxAttempts - attempts.length}`);
         await new Promise((resolve) => {
-          setTimeout(
-            resolve,
-            timeout_time,
-            undefined
-          );
+          setTimeout(resolve, timeout_time, undefined);
         });
       } else {
         throw new ExecutionError(
           "The operation was unable to achieve a quorum during its retry window.",
           attempts,
-          _caller,
+          _caller
         );
       }
     }
