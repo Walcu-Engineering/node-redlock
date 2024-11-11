@@ -1,6 +1,6 @@
 {
   "name": "@walcu-engineering/redlock",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "A node.js redlock implementation for distributed redis locks",
   "license": "MIT",
   "author": "The Walcu engineering team <devs@walcu.com>",
