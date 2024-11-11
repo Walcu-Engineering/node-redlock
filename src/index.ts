@@ -100,6 +100,7 @@ export interface Settings {
   readonly retryDelay: number;
   readonly retryJitter: number;
   readonly automaticExtensionThreshold: number;
+  readonly adquireExtraTime: number;
 }
 
 // Define default settings.
@@ -109,6 +110,7 @@ const defaultSettings: Readonly<Settings> = {
   retryDelay: 200,
   retryJitter: 100,
   automaticExtensionThreshold: 500,
+  adquireExtraTime: 0,
 };
 
 // Modifyng this object is forbidden.
@@ -131,7 +133,8 @@ export class ResourceLockedError extends Error {
 export class ExecutionError extends Error {
   constructor(
     public readonly message: string,
-    public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>
+    public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>,
+    public readonly caller?: string,
   ) {
     super();
     this.name = "ExecutionError";
@@ -232,6 +235,10 @@ export default class Redlock extends EventEmitter {
         typeof settings.automaticExtensionThreshold === "number"
           ? settings.automaticExtensionThreshold
           : defaultSettings.automaticExtensionThreshold,
+      adquireExtraTime:
+        typeof settings.adquireExtraTime === "number"
+          ? settings.adquireExtraTime
+          : defaultSettings.adquireExtraTime,
     };
 
     // Use custom scripts and script modifiers.
@@ -306,11 +313,13 @@ export default class Redlock extends EventEmitter {
     const value = this._random();
 
     try {
+      const redis_adquire_time = duration + (settings?.adquireExtraTime ?? 0);
       const { attempts, start } = await this._execute(
         this.scripts.acquireScript,
         resources,
-        [value, duration],
-        settings
+        [value, redis_adquire_time],
+        settings,
+        'acquire',
       );
 
       // Add 2 milliseconds to the drift to account for Redis expires precision,
@@ -332,7 +341,7 @@ export default class Redlock extends EventEmitter {
       // state that may exist on a minority of clients.
       await this._execute(this.scripts.releaseScript, resources, [value], {
         retryCount: 0,
-      }).catch(() => {
+      }, 'acquire error, releasing').catch(() => {
         // Any error here will be ignored.
       });
 
@@ -359,7 +368,8 @@ export default class Redlock extends EventEmitter {
       this.scripts.releaseScript,
       lock.resources,
       [lock.value],
-      settings
+      settings,
+      'release',
     );
   }
 
@@ -380,11 +390,14 @@ export default class Redlock extends EventEmitter {
       throw new ExecutionError("Cannot extend an already-expired lock.", []);
     }
 
+    const redis_adquire_time = duration + (settings?.adquireExtraTime ?? 0);
+
     const { attempts, start } = await this._execute(
       this.scripts.extendScript,
       existing.resources,
-      [existing.value, duration],
-      settings
+      [existing.value, redis_adquire_time],
+      settings,
+      'extend',
     );
 
     // Invalidate the existing lock.
@@ -417,7 +430,8 @@ export default class Redlock extends EventEmitter {
     script: { value: string; hash: string },
     keys: string[],
     args: (string | number)[],
-    _settings?: Partial<Settings>
+    _settings?: Partial<Settings>,
+    _caller?: string,
   ): Promise<ExecutionResult> {
     const settings = _settings
       ? {
@@ -425,6 +439,8 @@ export default class Redlock extends EventEmitter {
           ..._settings,
         }
       : this.settings;
+
+    // console.log(`[REDLOCK] ${_caller} executing`);
 
     // For the purpose of easy config serialization, we treat a retryCount of
     // -1 a equivalent to Infinity.
@@ -449,21 +465,24 @@ export default class Redlock extends EventEmitter {
 
       // Wait before reattempting.
       if (attempts.length < maxAttempts) {
+        const timeout_time = Math.max(
+          0,
+          settings.retryDelay +
+            Math.floor((Math.random() * 2 - 1) * settings.retryJitter)
+        );
+        // console.log(`Waiting for ${timeout_time} until retry, remaining attempts: ${maxAttempts - attempts.length}`);
         await new Promise((resolve) => {
           setTimeout(
             resolve,
-            Math.max(
-              0,
-              settings.retryDelay +
-                Math.floor((Math.random() * 2 - 1) * settings.retryJitter)
-            ),
+            timeout_time,
             undefined
           );
         });
       } else {
         throw new ExecutionError(
           "The operation was unable to achieve a quorum during its retry window.",
-          attempts
+          attempts,
+          _caller,
         );
       }
     }

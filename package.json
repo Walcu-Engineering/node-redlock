@@ -1,15 +1,13 @@
 {
-  "name": "redlock",
-  "version": "v5.0.0-beta.2",
+  "name": "@walcu-engineering/redlock",
+  "version": "5.0.0",
   "description": "A node.js redlock implementation for distributed redis locks",
   "license": "MIT",
-  "author": {
-    "name": "Mike Marcacci",
-    "email": "mike.marcacci@gmail.com"
+  "author": "The Walcu engineering team <devs@walcu.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Walcu-Engineering/node-redlock.git"
   },
-  "repository": "https://github.com/mike-marcacci/node-redlock.git",
-  "homepage": "https://github.com/mike-marcacci/node-redlock#readme",
-  "bugs": "https://github.com/mike-marcacci/node-redlock/issues",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/index.d.ts",
@@ -45,6 +43,9 @@
       "--experimental-specifier-resolution=node"
     ]
   },
+  "dependencies": {
+    "node-abort-controller": "^3.0.1"
+  },
   "devDependencies": {
     "@types/ioredis": "^4.28.8",
     "@types/node": "^17.0.21",
@@ -68,9 +69,6 @@
     "test:development": "cd dist/esm && ava --verbose --watch *.test.js",
     "prepare": "yarn build",
     "prepublishOnly": "yarn install && yarn lint && yarn build"
-  },
-  "dependencies": {
-    "node-abort-controller": "^3.0.1"
   },
   "type": "module"
 }
