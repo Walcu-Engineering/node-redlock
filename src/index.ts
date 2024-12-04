@@ -101,6 +101,7 @@ export interface Settings {
   readonly retryJitter: number;
   readonly automaticExtensionThreshold: number;
   readonly adquireExtraTime: number;
+  readonly usingId: string;
 }
 
 // Define default settings.
@@ -111,6 +112,7 @@ const defaultSettings: Readonly<Settings> = {
   retryJitter: 100,
   automaticExtensionThreshold: 500,
   adquireExtraTime: 0,
+  usingId: '',
 };
 
 // Modifyng this object is forbidden.
@@ -151,6 +153,7 @@ export class Lock {
     public readonly redlock: Redlock,
     public readonly resources: string[],
     public readonly value: string,
+    public readonly lock_id: string | null,
     public readonly attempts: ReadonlyArray<Promise<ExecutionStats>>,
     public expiration: number
   ) {}
@@ -239,6 +242,10 @@ export default class Redlock extends EventEmitter {
         typeof settings.adquireExtraTime === "number"
           ? settings.adquireExtraTime
           : defaultSettings.adquireExtraTime,
+      usingId:
+        typeof settings.usingId === "string"
+          ? settings.usingId
+          : defaultSettings.usingId,
     };
 
     // Use custom scripts and script modifiers.
@@ -319,7 +326,8 @@ export default class Redlock extends EventEmitter {
         resources,
         [value, redis_adquire_time],
         settings,
-        "acquire"
+        'acquire',
+        settings?.usingId ?? null,
       );
 
       // Add 2 milliseconds to the drift to account for Redis expires precision,
@@ -333,6 +341,7 @@ export default class Redlock extends EventEmitter {
         this,
         resources,
         value,
+        settings?.usingId ?? null,
         attempts,
         start + duration - drift
       );
@@ -375,7 +384,8 @@ export default class Redlock extends EventEmitter {
       lock.resources,
       [lock.value],
       settings,
-      "release"
+      'release',
+      lock.lock_id,
     );
   }
 
@@ -403,7 +413,8 @@ export default class Redlock extends EventEmitter {
       existing.resources,
       [existing.value, redis_adquire_time],
       settings,
-      "extend"
+      'extend',
+      existing.lock_id,
     );
 
     // Invalidate the existing lock.
@@ -420,6 +431,7 @@ export default class Redlock extends EventEmitter {
       this,
       existing.resources,
       existing.value,
+      existing.lock_id,
       attempts,
       start + duration - drift
     );
@@ -437,7 +449,8 @@ export default class Redlock extends EventEmitter {
     keys: string[],
     args: (string | number)[],
     _settings?: Partial<Settings>,
-    _caller?: string
+    _caller?: string,
+    _lock_id?: string | null,
   ): Promise<ExecutionResult> {
     const settings = _settings
       ? {
@@ -482,7 +495,7 @@ export default class Redlock extends EventEmitter {
         });
       } else {
         throw new ExecutionError(
-          "The operation was unable to achieve a quorum during its retry window.",
+          `The operation was unable to achieve a quorum for lock id "${_lock_id}" using the lock names: ${keys.map(f => `"${f}"`).join(', ')}`,
           attempts,
           _caller
         );
