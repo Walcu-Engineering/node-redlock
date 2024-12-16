@@ -41,19 +41,17 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
     port.close();
 
     // We have to manage the lock extension manually
-    let number_of_extensions = 0;
     const interval = setInterval(async () => {
       try {
         // This could happen if the releasing in a race condition between the interval and the
         // clearInterval, should not affect the lock safety
         if (!redlock_cache.has(lock_id)) return;
+        const { lock, interval, number_of_extensions } = redlock_cache.get(lock_id);
         if (max_extensions && number_of_extensions === max_extensions)
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
-        const { lock, interval } = redlock_cache.get(lock_id);
         const new_lock = await lock.extend(duration);
-        redlock_cache.set(lock_id, { lock: new_lock, interval });
-        number_of_extensions++;
+        redlock_cache.set(lock_id, { lock: new_lock, interval, number_of_extensions: ++number_of_extensions });
       } catch (err) {
         // Extending the lock failed, so we clear the interval here and message the main
         // thread that the locked section is no longer safe
@@ -62,7 +60,9 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
         clearInterval(interval);
       }
     }, duration - extension_threshold);
-    redlock_cache.set(lock_id, { interval, lock });
+
+    // Finally, add the lock to the cache, with the interval to clear when necessary
+    redlock_cache.set(lock_id, { interval, lock, number_of_extensions: 0 });
   } catch (err) {
     port.postMessage({ action: 'lock', result: 'fail', error: err });
     port.close();
@@ -71,7 +71,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
 
 const attempUnlock = async (port, { lock_id }) => {
   if (!redlock_cache.has(lock_id)) {
-    port.postMessage({ action: 'unlock', result: 'fail', error: new Error(`Lock id ${lock_id} does not exists`) });
+    port.postMessage({ action: 'unlock', result: 'fail', error: new Error(`Lock id ${lock_id} does not exist`) });
     port.close();
     return;
   }
@@ -98,10 +98,6 @@ parentPort.on('message', ({ port, action, data }) => {
     case 'unlock':
       attempUnlock(port, data);
       return;
-    case 'hello':
-      port.postMessage('hello');
-      port.close();
-      return 'hello';
     default:
       console.log(`[WORKER] Handler for action ${action} does not exists`);
   }
