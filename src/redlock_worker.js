@@ -2,7 +2,7 @@ import {
   parentPort,
   MessageChannel,
   getEnvironmentData,
-}              from 'worker_threads'
+}              from 'node:worker_threads'
 import Redis   from 'ioredis';
 import Redlock from './redlock';
 
@@ -43,7 +43,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
     // We have to manage the lock extension manually
     const interval = setInterval(async () => {
       try {
-        // This could happen if the releasing in a race condition between the interval and the
+        // This could happen if releasing in a race condition between interval creation and the
         // clearInterval, should not affect the lock safety
         if (!redlock_cache.has(lock_id)) return;
         const { lock, interval, number_of_extensions } = redlock_cache.get(lock_id);

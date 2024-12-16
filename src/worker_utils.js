@@ -21,7 +21,7 @@ export const getLock = async (worker, { lock_id, locks, duration, settings, max_
 
   // Promisify the onMessage and just get the first one, either it succedded or failed,
   // but as the channel is unique, no other messages could be sent here
-  const lock_result = await (new Promise((res) => main_port_lock.on('message', res)));
+  const lock_result = await new Promise((res) => main_port_lock.on('message', res));
 
   // If locking fails, propagate the error
   if (lock_result.result === 'fail') {
@@ -29,7 +29,7 @@ export const getLock = async (worker, { lock_id, locks, duration, settings, max_
   }
 
   return lock_result;
-}
+};
 
 export const freeLock = async (worker, { lock_id }) => {
   // Another exclusive channel for unlocking
@@ -41,7 +41,7 @@ export const freeLock = async (worker, { lock_id }) => {
   if (unlock_result.result === 'fail') {
     throw unlock_result.error;
   }
-}
+};
 
 export const generateLockedSection = worker => async (locks, duration = 1000, settings = {}, callback) => {
   // Generate a random identifier that will be used internally for locking and unlocking
@@ -62,10 +62,11 @@ export const generateLockedSection = worker => async (locks, duration = 1000, se
   try {
     // Execute the callback propagating the abort controller signal
     return await callback(controller.signal);
-  } finally { // We do not care if the callback crashes here, just make sure the lock is unlocked
+  } finally {
+    // We do not care if the callback crashes here, just make sure the lock is unlocked
     await freeLock(worker, { lock_id });
   }
-}
+};
 
 export const RedlockWorker = (REDIS_URL) => {
   setEnvironmentData('REDIS_URL', REDIS_URL);
