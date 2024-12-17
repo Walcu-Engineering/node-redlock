@@ -47,7 +47,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
         // clearInterval, should not affect the lock safety
         if (!redlock_cache.has(lock_id)) return;
         const { lock, interval, number_of_extensions } = redlock_cache.get(lock_id);
-        if (max_extensions && number_of_extensions === max_extensions)
+        if (max_extensions && number_of_extensions >= max_extensions)
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
         const new_lock = await lock.extend(duration);
