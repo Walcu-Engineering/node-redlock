@@ -11,7 +11,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "allowJs": true
   },
   "include": ["./src/**/*"]
 }
