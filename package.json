@@ -30,9 +30,21 @@
     "dist/esm/package.json",
     "dist/esm/index.js",
     "dist/esm/index.js.map",
+    "dist/esm/redlock.js",
+    "dist/esm/redlock.js.map",
+    "dist/esm/redlock_worker.js",
+    "dist/esm/redlock_worker.js.map",
+    "dist/esm/worker_utils.js",
+    "dist/esm/worker_utils.js.map",
     "dist/cjs/package.json",
     "dist/cjs/index.js",
-    "dist/cjs/index.js.map"
+    "dist/cjs/index.js.map",
+    "dist/cjs/redlock.js",
+    "dist/cjs/redlock.js.map",
+    "dist/cjs/redlock_worker.js",
+    "dist/cjs/redlock_worker.js.map",
+    "dist/cjs/worker_utils.js",
+    "dist/cjs/worker_utils.js.map"
   ],
   "engines": {
     "node": ">=12"
