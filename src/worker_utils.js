@@ -5,7 +5,10 @@ import {
   MessageChannel,
 }             from "node:worker_threads";
 
-export const getLock = worker => async ({ lock_id, locks, duration, settings, max_extensions }) => {
+export const getLock = worker => async (locks, duration, settings) => {
+
+  const lock_id = settings.lock_id ?? crypto.randomUUID();
+
   // worker.postMessage is in a way a broadcast, it uses a channel shared between all
   // lockedSection usages, so we create a new channel that will be used only for this lock
   const { port1: worker_port_lock, port2: main_port_lock } = new MessageChannel();
@@ -16,7 +19,7 @@ export const getLock = worker => async ({ lock_id, locks, duration, settings, ma
     locks,
     duration,
     settings,
-    max_extensions,
+    max_extensions: settings?.max_extensions,
   }}, [worker_port_lock]);
 
   // Promisify the onMessage and just get the first one, either it succedded or failed,
@@ -28,7 +31,7 @@ export const getLock = worker => async ({ lock_id, locks, duration, settings, ma
     throw lock_result.error;
   }
 
-  return lock_result;
+  return { lock_id, release: () => freeLock(lock_id) };
 };
 
 export const freeLock = worker => async ({ lock_id }) => {
