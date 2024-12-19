@@ -5,7 +5,7 @@ import {
   MessageChannel,
 }             from "node:worker_threads";
 
-export const getLock = async (worker, { lock_id, locks, duration, settings, max_extensions }) => {
+export const getLock = worker => async ({ lock_id, locks, duration, settings, max_extensions }) => {
   // worker.postMessage is in a way a broadcast, it uses a channel shared between all
   // lockedSection usages, so we create a new channel that will be used only for this lock
   const { port1: worker_port_lock, port2: main_port_lock } = new MessageChannel();
@@ -31,7 +31,7 @@ export const getLock = async (worker, { lock_id, locks, duration, settings, max_
   return lock_result;
 };
 
-export const freeLock = async (worker, { lock_id }) => {
+export const freeLock = worker => async ({ lock_id }) => {
   // Another exclusive channel for unlocking
   const { port1: worker_port_unlock, port2: main_port_unlock } = new MessageChannel();
   worker.postMessage({ port: worker_port_unlock, request_id: lock_id, action: 'unlock', data: {
@@ -48,7 +48,7 @@ export const generateLockedSection = worker => async (locks, duration = 1000, se
   const lock_id = crypto.randomUUID();
 
   // Get the lock
-  const lock_result = await getLock(worker, { lock_id, locks, duration, settings });
+  const lock_result = await getLock(worker)({ lock_id, locks, duration, settings });
 
   // Create an AbortController for stopping the callback in the case the lock fails to extend
   const controller = new AbortController();
@@ -64,7 +64,7 @@ export const generateLockedSection = worker => async (locks, duration = 1000, se
     return await callback(controller.signal);
   } finally {
     // We do not care if the callback crashes here, just make sure the lock is unlocked
-    await freeLock(worker, { lock_id });
+    await freeLock(worker)({ lock_id });
   }
 };
 
