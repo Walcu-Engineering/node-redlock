@@ -50,7 +50,11 @@ export const getLock = worker => async (locks, duration, settings) => {
   return lock_result;
 };
 
-export const generateLockedSection = worker => async (locks, duration = 1000, settings = {}, callback) => {
+export const generateLockedSection = worker => async (locks, duration = 1000, settingsOrCallback, optionalCallback) => {
+
+  const settings = typeof settings === "function" ? {} : settingsOrCallback;
+  const callback = optionalCallback ?? settingsOrCallback;
+
   // Generate a random identifier that will be used internally for locking and unlocking
   const lock_id = crypto.randomUUID();
 
