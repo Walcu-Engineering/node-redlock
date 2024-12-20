@@ -5,9 +5,21 @@ import {
   MessageChannel,
 }             from "node:worker_threads";
 
+export const freeLock = worker => async ({ lock_id }) => {
+  // Another exclusive channel for unlocking
+  const { port1: worker_port_unlock, port2: main_port_unlock } = new MessageChannel();
+  worker.postMessage({ port: worker_port_unlock, request_id: lock_id, action: 'unlock', data: {
+    lock_id,
+  }}, [worker_port_unlock]);
+  const unlock_result = await (new Promise((res) => main_port_unlock.on('message', res)));
+  if (unlock_result.result === 'fail') {
+    throw unlock_result.error;
+  }
+};
+
 export const getLock = worker => async (locks, duration, settings) => {
 
-  const lock_id = settings.lock_id ?? crypto.randomUUID();
+  const lock_id = settings?.lock_id ?? crypto.randomUUID();
 
   // worker.postMessage is in a way a broadcast, it uses a channel shared between all
   // lockedSection usages, so we create a new channel that will be used only for this lock
@@ -31,19 +43,11 @@ export const getLock = worker => async (locks, duration, settings) => {
     throw lock_result.error;
   }
 
-  return { lock_id, release: () => freeLock(lock_id) };
-};
+  // Add these two properties to create a lock like interface for ease of use
+  lock_result.lock_id = lock_id;
+  lock_result.release = () => freeLock(worker)({ lock_id });
 
-export const freeLock = worker => async ({ lock_id }) => {
-  // Another exclusive channel for unlocking
-  const { port1: worker_port_unlock, port2: main_port_unlock } = new MessageChannel();
-  worker.postMessage({ port: worker_port_unlock, request_id: lock_id, action: 'unlock', data: {
-    lock_id,
-  }}, [worker_port_unlock]);
-  const unlock_result = await (new Promise((res) => main_port_unlock.on('message', res)));
-  if (unlock_result.result === 'fail') {
-    throw unlock_result.error;
-  }
+  return lock_result;
 };
 
 export const generateLockedSection = worker => async (locks, duration = 1000, settings = {}, callback) => {
@@ -51,7 +55,7 @@ export const generateLockedSection = worker => async (locks, duration = 1000, se
   const lock_id = crypto.randomUUID();
 
   // Get the lock
-  const lock_result = await getLock(worker)({ lock_id, locks, duration, settings });
+  const lock_result = await getLock(worker)(locks, duration, { ...settings, lock_id });
 
   // Create an AbortController for stopping the callback in the case the lock fails to extend
   const controller = new AbortController();
