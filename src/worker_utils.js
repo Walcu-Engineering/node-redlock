@@ -52,7 +52,7 @@ export const getLock = worker => async (locks, duration, settings) => {
 
 export const generateLockedSection = worker => async (locks, duration = 1000, settingsOrCallback, optionalCallback) => {
 
-  const settings = typeof settings === "function" ? {} : settingsOrCallback;
+  const settings = typeof settingsOrCallback === "function" ? {} : settingsOrCallback;
   const callback = optionalCallback ?? settingsOrCallback;
 
   // Generate a random identifier that will be used internally for locking and unlocking
