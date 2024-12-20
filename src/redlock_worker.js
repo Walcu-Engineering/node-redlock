@@ -2,9 +2,11 @@ import {
   parentPort,
   MessageChannel,
   getEnvironmentData,
-}              from 'node:worker_threads'
-import Redis   from 'ioredis';
-import Redlock from './redlock';
+}            from 'node:worker_threads'
+import Redis from 'ioredis';
+import Redlock, {
+  ExecutionError,
+}            from './redlock';
 
 const redis = new Redis(getEnvironmentData('REDIS_URL'));
 const redlock = new Redlock([redis], {
@@ -55,7 +57,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
       } catch (err) {
         // Extending the lock failed, so we clear the interval here and message the main
         // thread that the locked section is no longer safe
-        worker_port_extend.postMessage({ action: 'extend', result: 'fail', error: err });
+        worker_port_extend.postMessage({ action: 'extend', result: 'fail', error: new ExecutionError(err) });
         worker_port_extend.close();
         clearInterval(interval);
       }
@@ -64,7 +66,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
     // Finally, add the lock to the cache, with the interval to clear when necessary
     redlock_cache.set(lock_id, { interval, lock, number_of_extensions: 0 });
   } catch (err) {
-    port.postMessage({ action: 'lock', result: 'fail', error: err });
+    port.postMessage({ action: 'lock', result: 'fail', error: new ExecutionError(err) });
     port.close();
   }
 };
@@ -85,7 +87,7 @@ const attempUnlock = async (port, { lock_id }) => {
     port.postMessage({ action: 'unlock', result: 'success' });
     port.close();
   } catch (err) {
-    port.postMessage({ action: 'unlock', result: 'fail', error: err });
+    port.postMessage({ action: 'unlock', result: 'fail', error: new ExecutionError(err) });
     port.close();
   }
 };
