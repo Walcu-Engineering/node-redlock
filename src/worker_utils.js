@@ -85,8 +85,7 @@ export const RedlockWorker = (REDIS_URL) => {
 };
 
 export const RedlockWithWorker = (REDIS_URL) => {
-  setEnvironmentData('REDIS_URL', REDIS_URL);
-  const redlock_worker = RedlockWorker();
+  const redlock_worker = RedlockWorker(REDIS_URL);
   return {
     worker: redlock_worker,
     acquire: getLock(redlock_worker),
