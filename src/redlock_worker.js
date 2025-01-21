@@ -48,12 +48,12 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
         // This could happen if releasing in a race condition between interval creation and the
         // clearInterval, should not affect the lock safety
         if (!redlock_cache.has(lock_id)) return;
-        const { lock, interval, number_of_extensions } = redlock_cache.get(lock_id);
+        const { lock: old_lock, number_of_extensions } = redlock_cache.get(lock_id);
         if (max_extensions && number_of_extensions >= max_extensions)
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
-        const new_lock = await lock.extend(duration);
-        redlock_cache.set(lock_id, { lock: new_lock, interval, number_of_extensions: ++number_of_extensions });
+        const new_lock = await old_lock.extend(duration);
+        redlock_cache.set(lock_id, { lock: new_lock, number_of_extensions: number_of_extensions + 1 });
       } catch (err) {
         // Extending the lock failed, so we clear the interval here and message the main
         // thread that the locked section is no longer safe
