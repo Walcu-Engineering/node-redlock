@@ -15,6 +15,7 @@ export const freeLock = worker => async ({ lock_id }) => {
   if (unlock_result.result === 'fail') {
     throw unlock_result.error;
   }
+  return unlock_result;
 };
 
 export const getLock = worker => async (locks, duration, settings) => {

@@ -494,7 +494,7 @@ export default class Redlock extends EventEmitter {
         });
       } else {
         throw new ExecutionError(
-          `The operation was unable to achieve a quorum for lock id "${_lock_id}" using the lock names: ${keys
+          `The operation was unable to achieve a quorum for lock id "${_lock_id}" when "${_caller}" using the lock names: ${keys
             .map((f) => `"${f}"`)
             .join(", ")}`,
           attempts,
