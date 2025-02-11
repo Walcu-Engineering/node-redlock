@@ -53,7 +53,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
         const new_lock = await old_lock.extend(duration);
-        redlock_cache.set(lock_id, { lock: new_lock, number_of_extensions: number_of_extensions + 1 });
+        redlock_cache.set(lock_id, { lock: new_lock, interval, number_of_extensions: number_of_extensions + 1 });
       } catch (err) {
         // Extending the lock failed, so we clear the interval here and message the main
         // thread that the locked section is no longer safe
