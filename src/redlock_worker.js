@@ -54,8 +54,9 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
         // This could happen if releasing in a race condition between interval creation and the
         // clearInterval, should not affect the lock safety
         if (!redlock_cache.has(lock_id)) return;
-        base_debug.extend(`${lock_id}:extend:debug`)('Attempting to extend lock. Number of extensions %d', number_of_extensions);
         const { lock: old_lock, number_of_extensions } = redlock_cache.get(lock_id);
+        base_debug.extend(`${lock_id}:extend:debug`)('Attempting to extend lock. Number of extensions %d', number_of_extensions);
+
         if (max_extensions && number_of_extensions >= max_extensions)
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
