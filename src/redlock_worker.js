@@ -61,7 +61,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
           throw new Error(`Maximum number of extensions (${max_extensions}) reached`);
 
         const new_lock = await old_lock.extend(duration);
-        redlock_cache.set(lock_id, { lock: new_lock, interval, number_of_extensions: number_of_extensions + 1 });
+        redlock_cache.set(lock_id, { lock: new_lock, interval, worker_port_extend, number_of_extensions: number_of_extensions + 1 });
         base_debug.extend(`${lock_id}:extend:debug`)('Lock extended successfully');
       } catch (err) {
         // Extending the lock failed, so we clear the interval here and message the main
@@ -74,7 +74,7 @@ const attempLock = async (port, { lock_id, locks, duration, max_extensions = nul
     }, duration - extension_threshold);
 
     // Finally, add the lock to the cache, with the interval to clear when necessary
-    redlock_cache.set(lock_id, { interval, lock, number_of_extensions: 0 });
+    redlock_cache.set(lock_id, { interval, lock, worker_port_extend, number_of_extensions: 0 });
   } catch (err) {
     base_debug.extend(`${lock_id}:lock:debug`)('Error acquiring lock %O', err);
     port.postMessage({ action: 'lock', result: 'fail', error: new ExecutionError(err) });
@@ -92,10 +92,11 @@ const attempUnlock = async (port, { lock_id }) => {
   }
   try {
     // Release the lock and clear the extending interval
-    const { lock, interval } = redlock_cache.get(lock_id);
+    const { lock, interval, worker_port_extend } = redlock_cache.get(lock_id);
     base_debug.extend(`${lock_id}:unlock:debug`)('Lock unlocked. Has timeout? %s', Boolean(interval));
     await redlock.release(lock);
     clearInterval(interval);
+    worker_port_extend.close();
     redlock_cache.delete(lock_id);
 
     port.postMessage({ action: 'unlock', result: 'success' });
